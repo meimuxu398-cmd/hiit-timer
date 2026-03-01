@@ -1,33 +1,49 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
-    <title>Todo App</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>本の管理システム</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 50px; }
-        .container { max-width: 600px; }
-        .task { padding: 10px; margin: 5px 0; background: #f0f0f0; border-radius: 5px; }
-        .delete-btn { color: red; text-decoration: none; float: right; }
-        input[type="text"] { width: 70%; padding: 10px; }
-        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; }
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .btn { background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; }
+        .delete { background-color: #f44336; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Todo List</h1>
-        
-        <form action="/add" method="POST">
-            <input type="text" name="task" placeholder="新しいタスクを入力" required>
-            <button type="submit">追加</button>
-        </form>
-        
-        <div>
-            {% for task in tasks %}
-            <div class="task">
-                {{ task }}
-                <a href="/delete/{{ loop.index0 }}" class="delete-btn">削除</a>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
+    <h1>本の管理システム</h1>
+    
+    <a href="{{ url_for('add_book') }}" class="btn">新しい本を追加</a>
+    
+    <h2>本のリスト</h2>
+    
+    {% if books %}
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>タイトル</th>
+            <th>著者</th>
+            <th>出版年</th>
+            <th>操作</th>
+        </tr>
+        {% for book in books %}
+        <tr>
+            <td>{{ book.id }}</td>
+            <td>{{ book.title }}</td>
+            <td>{{ book.author }}</td>
+            <td>{{ book.year }}</td>
+            <td>
+                <a href="{{ url_for('delete_book', book_id=book.id) }}" class="btn delete" 
+                   onclick="return confirm('この本を削除しますか？')">削除</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <p>本がありません。</p>
+    {% endif %}
 </body>
 </html>

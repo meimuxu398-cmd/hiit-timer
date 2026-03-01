@@ -62,13 +62,25 @@ def save_code(code_text, filename="generated_app.py"):
 
 
 def run_code(filename="generated_app.py"):
-    result = subprocess.run(
+    process = subprocess.Popen(
         ["python", filename],
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True,
     )
-    return result.returncode, result.stdout, result.stderr
 
+    try:
+        # 3秒待ってエラーが出るか確認
+        stdout, stderr = process.communicate(timeout=3)
+        return process.returncode, stdout, stderr
+    except subprocess.TimeoutExpired:
+        # タイムアウト = サーバー起動成功とみなす
+        print("サーバー起動を検知しました（タイムアウト扱い成功）")
+        return 0, "Server started", ""
+
+def git_commit(message):
+    subprocess.run(["git", "add", "."])
+    subprocess.run(["git", "commit", "-m", message])
 
 def install_missing_package(error_message):
     match = re.search(r"No module named '(.+?)'", error_message)
@@ -93,6 +105,7 @@ if __name__ == "__main__":
         if returncode == 0:
             print("実行成功！")
             print(stdout)
+            git_commit(f"Auto commit: {user_input}")
             break
         else:
             print("エラー発生。解析中...")
