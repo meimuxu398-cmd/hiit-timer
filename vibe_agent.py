@@ -12,14 +12,15 @@ client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 def generate_code(user_instruction):
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
-        max_tokens=1500,
+        max_tokens=4000,
         messages=[
             {
                 "role": "user",
                 "content": f"""
-あなたは優秀なPythonエンジニアです。
-以下の指示に従って、完成したPythonコードのみを出力してください。
-説明は不要です。コードだけ出力してください。
+あなたは優秀なWebエンジニアです。
+以下の指示に従って、完成したコードのみを出力してください。
+説明やMarkdown記法は禁止です。
+コードだけをそのまま出力してください。
 
 指示:
 {user_instruction}
@@ -28,20 +29,26 @@ def generate_code(user_instruction):
         ],
     )
 
-    return response.content[0].text
+    full_text = ""
+    for block in response.content:
+        if block.type == "text":
+            full_text += block.text
+
+    return full_text.strip()
 
 
 def fix_code(original_code, error_message):
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
-        max_tokens=1500,
+        max_tokens=4000,
         messages=[
             {
                 "role": "user",
                 "content": f"""
-以下のPythonコードにエラーがあります。
+以下のコードにエラーがあります。
 エラーメッセージを参考に修正してください。
 修正版の完全なコードのみを出力してください。
+説明やMarkdownは禁止です。
 
 エラー:
 {error_message}
@@ -53,7 +60,15 @@ def fix_code(original_code, error_message):
         ],
     )
 
-    return response.content[0].text
+    full_text = ""
+    for block in response.content:
+        if block.type == "text":
+            full_text += block.text
+
+    full_text = full_text.strip()
+    full_text = full_text.replace("```python", "").replace("```", "")
+
+    return full_text
 
 
 def save_code(code_text, filename="generated_app.py"):
@@ -78,6 +93,10 @@ def run_code(filename="generated_app.py"):
         print("サーバー起動を検知しました（タイムアウト扱い成功）")
         return 0, "Server started", ""
 
+def read_file(filename):
+    with open(filename, "r", encoding="utf-8") as f:
+        return f.read()
+
 def git_commit(message):
     subprocess.run(["git", "add", "."])
     subprocess.run(["git", "commit", "-m", message])
@@ -91,31 +110,31 @@ def install_missing_package(error_message):
         return True
     return False
 
-
 if __name__ == "__main__":
-    user_input = input("何を作りますか？: ")
+    mode = input("モードを選択してください (1: 新規生成, 2: 既存修正): ")
 
-    code = generate_code(user_input)
-    save_code(code)
+    if mode == "1":
+        user_input = input("何を作りますか？: ")
+        code = generate_code(user_input)
+        save_code(code, "index.html")
+        print("index.html に保存しました")
 
-    for attempt in range(5):
-        print(f"\n--- 実行試行 {attempt+1} ---")
-        returncode, stdout, stderr = run_code()
+    elif mode == "2":
+        instruction = input("何を修正しますか？: ")
+        current_code = read_file("index.html")
 
-        if returncode == 0:
-            print("実行成功！")
-            print(stdout)
-            git_commit(f"Auto commit: {user_input}")
-            break
-        else:
-            print("エラー発生。解析中...")
+        prompt = f"""
+以下は現在のindex.htmlです。
 
-            if install_missing_package(stderr):
-                continue
+{current_code}
 
-            print("コード修正中...")
-            code = fix_code(code, stderr)
-            save_code(code)
+これを次の要件に従って修正してください。
 
-    else:
-        print("修正できませんでした。")
+{instruction}
+
+修正版の完全なindex.htmlのみ出力してください。
+"""
+
+        code = generate_code(prompt)
+        save_code(code, "index.html")
+        print("index.html を更新しました")

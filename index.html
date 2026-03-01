@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HIIT Timer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .settings {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 15px 0;
+        }
+
+        .setting-row label {
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .setting-row input {
+            width: 80px;
+            padding: 8px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.9);
+            text-align: center;
+        }
+
+        .timer-display {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 20px;
+            margin-bottom: 30px;
+        }
+
+        .current-set {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #ffd700;
+        }
+
+        .phase {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .phase.work {
+            background: #ff4444;
+            color: white;
+        }
+
+        .phase.rest {
+            background: #44ff44;
+            color: black;
+        }
+
+        .remaining-time {
+            font-size: 64px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .countdown {
+            animation: pulse 1s infinite;
+            color: #ff6666;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .total-time {
+            font-size: 18px;
+            color: #cccccc;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 100px;
+        }
+
+        .start-btn {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .start-btn:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        .pause-btn {
+            background: #ff9800;
+            color: white;
+        }
+
+        .pause-btn:hover {
+            background: #e68900;
+            transform: translateY(-2px);
+        }
+
+        .resume-btn {
+            background: #2196F3;
+            color: white;
+        }
+
+        .resume-btn:hover {
+            background: #1976D2;
+            transform: translateY(-2px);
+        }
+
+        .reset-btn {
+            background: #f44336;
+            color: white;
+        }
+
+        .reset-btn:hover {
+            background: #d32f2f;
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="settings" id="settings">
+            <h2>HIIT Timer Settings</h2>
+            <div class="setting-row">
+                <label>セット数:</label>
+                <input type="number" id="sets" value="5" min="1" max="20">
+            </div>
+            <div class="setting-row">
+                <label>実施時間 (秒):</label>
+                <input type="number" id="workTime" value="30" min="1" max="300">
+            </div>
+            <div class="setting-row">
+                <label>休憩時間 (秒):</label>
+                <input type="number" id="restTime" value="10" min="1" max="300">
+            </div>
+        </div>
+
+        <div class="timer-display">
+            <div class="current-set" id="currentSet">1 / 5</div>
+            <div class="phase work" id="phase">WORK</div>
+            <div class="remaining-time" id="remainingTime">30</div>
+            <div class="total-time" id="totalTime">00:00</div>
+        </div>
+
+        <div class="controls">
+            <button class="start-btn" id="startBtn">START</button>
+            <button class="pause-btn hidden" id="pauseBtn">PAUSE</button>
+            <button class="resume-btn hidden" id="resumeBtn">RESUME</button>
+            <button class="reset-btn" id="resetBtn">RESET</button>
+        </div>
+    </div>
+
+    <script>
+        class HIITTimer {
+            constructor() {
+                this.sets = 5;
+                this.workTime = 30;
+                this.restTime = 10;
+                this.currentSet = 1;
+                this.isWorkPhase = true;
+                this.remainingTime = 30;
+                this.totalElapsedTime = 0;
+                this.timer = null;
+                this.isRunning = false;
+                this.isPaused = false;
+                
+                this.initElements();
+                this.initSounds();
+                this.bindEvents();
+                this.updateDisplay();
+            }
+
+            initElements() {
+                this.setsInput = document.getElementById('sets');
+                this.workTimeInput = document.getElementById('workTime');
+                this.restTimeInput = document.getElementById('restTime');
+                this.currentSetEl = document.getElementById('currentSet');
+                this.phaseEl = document.getElementById('phase');
+                this.remainingTimeEl = document.getElementById('remainingTime');
+                this.totalTimeEl = document.getElementById('totalTime');
+                this.startBtn = document.getElementById('startBtn');
+                this.pauseBtn = document.getElementById('pauseBtn');
+                this.resumeBtn = document.getElementById('resumeBtn');
+                this.resetBtn = document.getElementById('resetBtn');
+                this.settingsEl = document.getElementById('settings');
+            }
+
+            initSounds() {
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                this.createCountdownSound();
+                this.createWorkToRestSound();
+                this.createRestToWorkSound();
+            }
+
+            createCountdownSound() {
+                this.countdownSound = () => {
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(800, this.audioContext.currentTime);
+                    gainNode.gain.setValueAtTime(0.3, this.audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.3);
+                    
+                    oscillator.start();
+                    oscillator.stop(this.audioContext.currentTime + 0.3);
+                };
+            }
+
+            createWorkToRestSound() {
+                this.workToRestSound = () => {
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(800, this.audioContext.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(400, this.audioContext.currentTime + 0.5);
+                    
+                    gainNode.gain.setValueAtTime(0.4, this.audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.7);
+                    
+                    oscillator.start();
+                    oscillator.stop(this.audioContext.currentTime + 0.7);
+                };
+            }
+
+            createRestToWorkSound() {
+                this.restToWorkSound = () => {
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(400, this.audioContext.currentTime);
+                    oscillator.frequency.setValueAtTime(600, this.audioContext.currentTime + 0.1);
+                    oscillator.frequency.setValueAtTime(800, this.audioContext.currentTime + 0.2);
+                    oscillator.frequency.setValueAtTime(1000, this.audioContext.currentTime + 0.3);
+                    
+                    gainNode.gain.setValueAtTime(0.4, this.audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.6);
+                    
+                    oscillator.start();
+                    oscillator.stop(this.audioContext.currentTime + 0.6);
+                };
+            }
+
+            bindEvents() {
+                this.startBtn.addEventListener('click', () => this.start());
+                this.pauseBtn.addEventListener('click', () => this.pause());
+                this.resumeBtn.addEventListener('click', () => this.resume());
+                this.resetBtn.addEventListener('click', () => this.reset());
+                
+                this.setsInput.addEventListener('change', () => this.updateSettings());
+                this.workTimeInput.addEventListener('change', () => this.updateSettings());
+                this.restTimeInput.addEventListener('change', () => this.updateSettings());
+            }
+
+            updateSettings() {
+                if (!this.isRunning) {
+                    this.sets = parseInt(this.setsInput.value);
+                    this.workTime = parseInt(this.workTimeInput.value);
+                    this.restTime = parseInt(this.restTimeInput.value);
+                    this.reset();
+                }
+            }
+
+            start() {
+                this.audioContext.resume();
+                this.isRunning = true;
+                this.settingsEl.style.display = 'none';
+                this.startBtn.classList.add('hidden');
+                this.pauseBtn.classList.remove('hidden');
+                this.resumeBtn.classList.add('hidden');
+                
+                this.timer = setInterval(() => {
+                    this.tick();
+                }, 1000);
+            }
+
+            pause() {
+                this.isPaused = true;
+                clearInterval(this.timer);
+                this.pauseBtn.classList.add('hidden');
+                this.resumeBtn.classList.remove('hidden');
+            }
+
+            resume() {
+                this.isPaused = false;
+                this.pauseBtn.classList.remove('hidden');
+                this.resumeBtn.classList.add('hidden');
+                
+                this.timer = setInterval(() => {
+                    this.tick();
+                }, 1000);
+            }
+
+            reset() {
+                this.isRunning = false;
+                this.isPaused = false;
+                clearInterval(this.timer);
+                
+                this.currentSet = 1;
+                this.isWorkPhase = true;
+                this.remainingTime = this.workTime;
+                this.totalElapsedTime = 0;
+                
+                this.settingsEl.style.display = 'block';
+                this.startBtn.classList.remove('hidden');
+                this.pauseBtn.classList.add('hidden');
+                this.resumeBtn.classList.add('hidden');
+                
+                this.updateDisplay();
+            }
+
+            tick() {
+                this.remainingTime--;
+                this.totalElapsedTime++;
+                
+                if (this.remainingTime <= 3 && this.remainingTime > 0) {
+                    this.remainingTimeEl.classList.add('countdown');
+                    this.countdownSound();
+                } else {
+                    this.remainingTimeEl.classList.remove('countdown');
+                }
+                
+                if (this.remainingTime <= 0) {
+                    if (this.isWorkPhase) {
+                        this.workToRestSound();
+                        this.isWorkPhase = false;
+                        this.remainingTime = this.restTime;
+                    } else {
+                        this.currentSet++;
+                        if (this.currentSet > this.sets) {
+                            this.complete();
+                            return;
+                        }
+                        this.restToWorkSound();
+                        this.isWorkPhase = true;
+                        this.remainingTime = this.workTime;
+                    }
+                }
+                
+                this.updateDisplay();
+            }
+
+            complete() {
+                clearInterval(this.timer);
+                this.isRunning = false;
+                this.remainingTimeEl.textContent = "完了!";
+                this.remainingTimeEl.classList.remove('countdown');
+                this.pauseBtn.classList.add('hidden');
+                this.resumeBtn.classList.add('hidden');
+                this.startBtn.classList.remove('hidden');
+                this.startBtn.textContent = "再開始";
+            }
+
+            updateDisplay() {
+                this.currentSetEl.textContent = `${this.currentSet} / ${this.sets}`;
+                
+                if (this.isWorkPhase) {
+                    this.phaseEl.textContent = "WORK";
+                    this.phaseEl.className = "phase work";
+                } else {
+                    this.phaseEl.textContent = "REST";
+                    this.phaseEl.className = "phase rest";
+                }
+                
+                this.remainingTimeEl.textContent = this.remainingTime;
+                
+                const minutes = Math.floor(this.totalElapsedTime / 60);
+                const seconds = this.totalElapsedTime % 60;
+                this.totalTimeEl.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+        }
+
+        const hiitTimer = new HIITTimer();
+        if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('service-worker.js')
+            .then(reg => console.log("Service Worker registered"))
+            .catch(err => console.log("Service Worker error", err));
+        });
+        }
+    </script>
+</body>
+</html>
