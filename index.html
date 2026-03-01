@@ -446,11 +446,14 @@
         }
 
         const hiitTimer = new HIITTimer();
-        if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./service-worker.js', { scope: './' })
-            .then(reg => console.log("Service Worker registered"))
-            .catch(err => console.log("Service Worker error", err));
+        if ("serviceWorker" in navigator) {
+        window.addEventListener("load", async () => {
+            try {
+            const reg = await navigator.serviceWorker.register("/hiit-timer/service-worker.js", { scope: "/hiit-timer/" });
+            console.log("SW registered:", reg.scope);
+            } catch (e) {
+            console.log("SW register failed:", e);
+            }
         });
         }
     </script>
